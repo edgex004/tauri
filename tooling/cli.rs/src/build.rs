@@ -70,7 +70,8 @@ impl Build {
   }
 
   pub fn run(self) -> crate::Result<()> {
-    let logger = Logger::new("tauri:build");
+    let logging_context = "tauri:build";
+    let logger = Logger::new(logging_context);
     let config = get_config(self.config.as_deref())?;
 
     let tauri_path = tauri_dir();
@@ -130,7 +131,7 @@ impl Build {
     let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
     let out_dir = app_settings
-      .get_out_dir(self.target.clone(), self.debug)
+      .get_out_dir(self.target.clone(), self.debug, logging_context)
       .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
       let bin_name = app_settings.cargo_package_settings().name.clone();

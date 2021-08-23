@@ -15,7 +15,7 @@ use anyhow::Context;
 use heck::KebabCase;
 use serde::Deserialize;
 
-use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
+use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest,  Logger};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings, WixSettings,
@@ -188,9 +188,9 @@ impl AppSettings {
     )
   }
 
-  pub fn get_out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
+  pub fn get_out_dir(&self, target: Option<String>, debug: bool, logging_context: &str) -> crate::Result<PathBuf> {
     let tauri_dir = tauri_dir();
-    let workspace_dir = get_workspace_dir(&tauri_dir);
+    let workspace_dir = get_workspace_dir(&tauri_dir, logging_context);
     get_target_dir(&workspace_dir, target, !debug)
   }
 
@@ -330,12 +330,22 @@ fn get_target_dir(
 ///
 /// If this package is part of a workspace, returns the path to the workspace directory
 /// Otherwise returns the current directory.
-pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
+pub fn get_workspace_dir(current_dir: &Path, logging_context: &str ) -> PathBuf {
   let mut dir = current_dir.to_path_buf();
   let project_path = dir.clone();
+  let logger = Logger::new(logging_context);
 
   while dir.pop() {
-    if let Ok(cargo_settings) = CargoSettings::load(&dir) {
+    if dir.join("Cargo.toml").exists(){
+      let cargo_settings = match CargoSettings::load(&dir) {
+        Ok(v) => v,
+        Err(e) => {
+          logger.warn( format!("Found `{}`, which may define a parent workspace, but \
+          failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
+          \n    {:#}", dir.display(), e));
+          continue
+        }
+      };
       if let Some(workspace_settings) = cargo_settings.workspace {
         if let Some(members) = workspace_settings.members {
           if members

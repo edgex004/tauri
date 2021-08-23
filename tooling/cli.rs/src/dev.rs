@@ -97,7 +97,8 @@ impl Dev {
   }
 
   pub fn run(self) -> crate::Result<()> {
-    let logger = Logger::new("tauri:dev");
+    let logging_context = "tauri:dev";
+    let logger = Logger::new(logging_context);
     let tauri_path = tauri_dir();
     set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
     let merge_config = self.config.clone();
@@ -109,7 +110,7 @@ impl Dev {
       let config_ = config_guard.as_ref().unwrap();
       let app_settings = crate::interface::rust::AppSettings::new(config_)?;
       let out_dir = app_settings
-        .get_out_dir(self.target.clone(), true)
+        .get_out_dir(self.target.clone(), true, logging_context )
         .with_context(|| "failed to get project out directory")?;
       let settings = crate::interface::get_bundler_settings(
         app_settings,
